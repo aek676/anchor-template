@@ -1,0 +1,6 @@
+[template]
+cargo_generate_version = ">=0.23.0"
+exclude = [".github/workflows/ci.yml"]
+
+[hooks]
+post = ["init-program-id.rhai"]

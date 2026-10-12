@@ -1,0 +1,23 @@
+skip_local_validator = true
+
+[toolchain]
+anchor_version = "1.2.1"
+# Anchor 1.2 recommends Solana 4.1.2, but avm 1.2.1 maps it to 3.1.10 and switches the
+# global Solana CLI on every `anchor` call (otter-sec/anchor#5031). Pinning overrides that.
+solana_version = "4.1.2"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.localnet]
+{{crate_name}} = "9oGJkSqXZgSpifv8L8fUTzTv2LduWMnJtDEexMLbWQEg"
+
+[provider]
+cluster = "localnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "cargo test --locked"
+
+[hooks]

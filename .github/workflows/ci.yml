@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  # Weekly run catches upstream breakage (Anchor, Agave, LiteSVM) before you hit it locally.
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+env:
+  # Keep in sync with [toolchain] in Anchor.toml. Rust comes from rust-toolchain.toml.
+  ANCHOR_VERSION: "1.2.1"
+  SOLANA_VERSION: "4.1.2"
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/v${SOLANA_VERSION}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+
+      - name: Install Anchor CLI (avm)
+        run: |
+          cargo install --git https://github.com/otter-sec/anchor --tag "v${ANCHOR_VERSION}" avm --locked
+          avm install "${ANCHOR_VERSION}"
+          avm use "${ANCHOR_VERSION}"
+
+      - name: Create a throwaway wallet
+        run: solana-keygen new --no-bip39-passphrase --silent --outfile ~/.config/solana/id.json
+
+      - name: Build and test
+        env:
+          NO_DNA: "1"
+        run: anchor test
