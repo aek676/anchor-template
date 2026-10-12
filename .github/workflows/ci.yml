@@ -26,9 +26,13 @@ jobs:
           sh -c "$(curl -sSfL https://release.anza.xyz/v${SOLANA_VERSION}/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
 
+      # Outside the repo so rust-toolchain.toml (Rust 1.89, for the program) doesn't apply:
+      # avm itself needs a newer rustc.
       - name: Install Anchor CLI (avm)
+        working-directory: ${{ runner.temp }}
         run: |
-          cargo install --git https://github.com/otter-sec/anchor --tag "v${ANCHOR_VERSION}" avm --locked
+          rustup toolchain install stable --profile minimal
+          cargo +stable install --git https://github.com/otter-sec/anchor --tag "v${ANCHOR_VERSION}" avm --locked
           avm install "${ANCHOR_VERSION}"
           avm use "${ANCHOR_VERSION}"
 
