@@ -19,22 +19,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: Swatinem/rust-cache@v2
-
       - name: Install Solana CLI
         run: |
           sh -c "$(curl -sSfL https://release.anza.xyz/v${SOLANA_VERSION}/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
 
-      # Outside the repo so rust-toolchain.toml (Rust 1.89, for the program) doesn't apply:
-      # avm itself needs a newer rustc.
-      - name: Install Anchor CLI (avm)
-        working-directory: ${{ runner.temp }}
+      # Prebuilt binary from the Anchor release: seconds instead of compiling avm (~2 min).
+      # avm isn't needed here, the versions are already the ones pinned in Anchor.toml.
+      - name: Install Anchor CLI
         run: |
-          rustup toolchain install stable --profile minimal
-          cargo +stable install --git https://github.com/otter-sec/anchor --tag "v${ANCHOR_VERSION}" avm --locked
-          avm install "${ANCHOR_VERSION}"
-          avm use "${ANCHOR_VERSION}"
+          mkdir -p "$HOME/.local/bin"
+          curl -sSfL -o "$HOME/.local/bin/anchor" \
+            "https://github.com/otter-sec/anchor/releases/download/v${ANCHOR_VERSION}/anchor-${ANCHOR_VERSION}-x86_64-unknown-linux-gnu"
+          chmod +x "$HOME/.local/bin/anchor"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/anchor" --version
 
       - name: Create a throwaway wallet
         run: solana-keygen new --no-bip39-passphrase --silent --outfile ~/.config/solana/id.json
@@ -50,11 +49,16 @@ jobs:
       - name: Generate a project from the template
         if: hashFiles('cargo-generate.toml') != ''
         run: |
-          cargo generate --path . --name ci-check --destination "$RUNNER_TEMP" --silent --allow-commands
-          echo "PROJECT_DIR=$RUNNER_TEMP/ci-check" >> "$GITHUB_ENV"
+          cargo generate --path . --name ci-check --destination . --silent --allow-commands
+          echo "PROJECT_DIR=ci-check" >> "$GITHUB_ENV"
+
+      # After generation so it can point at the project that is actually built.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ${{ env.PROJECT_DIR || '.' }} -> target
 
       - name: Build and test
-        working-directory: ${{ env.PROJECT_DIR || github.workspace }}
+        working-directory: ${{ env.PROJECT_DIR || '.' }}
         env:
           NO_DNA: "1"
         run: anchor test
