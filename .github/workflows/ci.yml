@@ -39,7 +39,22 @@ jobs:
       - name: Create a throwaway wallet
         run: solana-keygen new --no-bip39-passphrase --silent --outfile ~/.config/solana/id.json
 
+      # Only in the template repo (generated projects don't get cargo-generate.toml): the raw
+      # template has {{placeholders}}, so generate a project from it and test that instead.
+      - name: Install cargo-generate
+        if: hashFiles('cargo-generate.toml') != ''
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-generate
+
+      - name: Generate a project from the template
+        if: hashFiles('cargo-generate.toml') != ''
+        run: |
+          cargo generate --path . --name ci-check --destination "$RUNNER_TEMP" --silent --allow-commands
+          echo "PROJECT_DIR=$RUNNER_TEMP/ci-check" >> "$GITHUB_ENV"
+
       - name: Build and test
+        working-directory: ${{ env.PROJECT_DIR || github.workspace }}
         env:
           NO_DNA: "1"
         run: anchor test
